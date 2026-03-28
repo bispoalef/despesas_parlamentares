@@ -6,7 +6,7 @@ project(runner LANGUAGES CXX)
 # the on-disk name of your application.
 set(BINARY_NAME "despesas_parlamentares")
 # The unique GTK application identifier for this application. See:
-# https://wiki.gnome.org/HowDoI/ChooseApplicationID
+# https:
 set(APPLICATION_ID "com.example.despesas_parlamentares")
 
 # Explicitly opt in to modern CMake behaviors to avoid warnings with recent
