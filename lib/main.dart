@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'core/inject/inject.dart';
 import 'domain/entities/deputado.dart';
@@ -69,8 +70,26 @@ class _TelaTesteState extends State<TelaTeste> {
             itemBuilder: (context, index) {
               final deputado = listaDeputados[index];
               return ListTile(
-                leading: CircleAvatar(
-                  backgroundImage: NetworkImage(deputado.urlFoto),
+                leading: ClipOval(
+                  child: CachedNetworkImage(
+                    imageUrl: deputado.urlFoto,
+                    width: 50,
+                    height: 50,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => const SizedBox(
+                      width: 50,
+                      height: 50,
+                      child: Padding(
+                        padding: EdgeInsets.all(12.0),
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                    errorWidget: (context, url, error) => const SizedBox(
+                      width: 50,
+                      height: 50,
+                      child: Icon(Icons.person, color: Colors.grey),
+                    ),
+                  ),
                 ),
                 title: Text(deputado.nome),
                 subtitle: Text(
