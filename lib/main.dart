@@ -1,4 +1,3 @@
-import 'package:despesas_parlamentares/presentation/pages/tela_detalhes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -7,6 +6,7 @@ import 'core/inject/inject.dart';
 import 'core/theme/app_theme.dart';
 import 'presentation/blocs/deputados/deputados_cubit.dart';
 import 'presentation/blocs/deputados/deputados_state.dart';
+import 'presentation/pages/tela_detalhes.dart';
 
 void main() {
   setupInject();
@@ -38,42 +38,26 @@ class TelaInicial extends StatefulWidget {
 }
 
 class _TelaInicialState extends State<TelaInicial> {
-  final _buscaController = TextEditingController();
+  String _textoBuscaAtual = '';
   String? _ufSelecionada;
 
   final List<String> _estados = [
     'AC',
     'AL',
-    'AP',
-    'AM',
     'BA',
     'CE',
     'DF',
-    'ES',
-    'GO',
-    'MA',
-    'MT',
-    'MS',
     'MG',
-    'PA',
-    'PB',
-    'PR',
     'PE',
-    'PI',
     'RJ',
-    'RN',
-    'RS',
-    'RO',
-    'RR',
-    'SC',
     'SP',
-    'SE',
-    'TO',
+    'RS',
   ];
 
-  void _realizarBusca() {
-    context.read<DeputadosCubit>().carregarDeputados(
-      buscaNome: _buscaController.text,
+  void _realizarBusca(String textoBusca) {
+    _textoBuscaAtual = textoBusca;
+    context.read<DeputadosCubit>().realizarBuscaLocal(
+      buscaNome: _textoBuscaAtual,
       siglaUf: _ufSelecionada,
     );
   }
@@ -102,23 +86,46 @@ class _TelaInicialState extends State<TelaInicial> {
             ),
             child: Column(
               children: [
-                TextField(
-                  controller: _buscaController,
-                  decoration: InputDecoration(
-                    hintText: 'Buscar por nome...',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        _buscaController.clear();
-                        _realizarBusca();
+                Autocomplete<String>(
+                  optionsBuilder: (TextEditingValue textEditingValue) {
+                    if (textEditingValue.text.isEmpty) {
+                      return const Iterable<String>.empty();
+                    }
+                    final cubit = context.read<DeputadosCubit>();
+                    final nomes = cubit.todosDeputadosCache
+                        .map((d) => d.nome)
+                        .toSet()
+                        .toList();
+                    return nomes.where(
+                      (nome) => nome.toLowerCase().contains(
+                        textEditingValue.text.toLowerCase(),
+                      ),
+                    );
+                  },
+                  onSelected: (String selecao) {
+                    _realizarBusca(selecao);
+                  },
+                  fieldViewBuilder:
+                      (context, controller, focusNode, onFieldSubmitted) {
+                        return TextField(
+                          controller: controller,
+                          focusNode: focusNode,
+                          decoration: InputDecoration(
+                            hintText: 'Buscar deputado por nome...',
+                            prefixIcon: const Icon(Icons.search),
+                            suffixIcon: IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                controller.clear();
+                                _realizarBusca('');
+                              },
+                            ),
+                          ),
+                          onChanged: (texto) => _realizarBusca(texto),
+                        );
                       },
-                    ),
-                  ),
-                  onSubmitted: (_) => _realizarBusca(),
                 ),
                 const SizedBox(height: 16),
-
                 SizedBox(
                   height: 40,
                   child: ListView.builder(
@@ -144,7 +151,7 @@ class _TelaInicialState extends State<TelaInicial> {
                             setState(() {
                               _ufSelecionada = selected ? uf : null;
                             });
-                            _realizarBusca();
+                            _realizarBusca(_textoBuscaAtual);
                           },
                         ),
                       );
@@ -154,25 +161,24 @@ class _TelaInicialState extends State<TelaInicial> {
               ],
             ),
           ),
-
           Expanded(
             child: BlocBuilder<DeputadosCubit, DeputadosState>(
               builder: (context, state) {
                 if (state is DeputadosLoading || state is DeputadosInitial) {
                   return const Center(child: CircularProgressIndicator());
                 } else if (state is DeputadosError) {
-                  return Center(child: Text(state.mensagem));
+                  return Center(
+                    child: Text(
+                      state.mensagem,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  );
                 } else if (state is DeputadosSuccess) {
                   final lista = state.deputados;
-
-                  if (lista.isEmpty) {
+                  if (lista.isEmpty)
                     return const Center(
-                      child: Text(
-                        'Nenhum deputado encontrado com estes filtros.',
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
-                      ),
+                      child: Text('Nenhum deputado encontrado.'),
                     );
-                  }
 
                   return ListView.builder(
                     padding: const EdgeInsets.all(8),
@@ -185,21 +191,15 @@ class _TelaInicialState extends State<TelaInicial> {
                           vertical: 6,
                           horizontal: 8,
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
                         child: ListTile(
-                          contentPadding: const EdgeInsets.all(8),
                           leading: ClipOval(
                             child: CachedNetworkImage(
                               imageUrl: deputado.urlFoto,
                               width: 56,
                               height: 56,
                               fit: BoxFit.cover,
-                              placeholder: (context, url) =>
-                                  const CircularProgressIndicator(),
                               errorWidget: (context, url, error) =>
-                                  const Icon(Icons.person, size: 40),
+                                  const Icon(Icons.person),
                             ),
                           ),
                           title: Text(
@@ -208,11 +208,6 @@ class _TelaInicialState extends State<TelaInicial> {
                           ),
                           subtitle: Text(
                             '${deputado.siglaPartido} - ${deputado.siglaUf}',
-                          ),
-                          trailing: const Icon(
-                            Icons.arrow_forward_ios,
-                            size: 16,
-                            color: Colors.grey,
                           ),
                           onTap: () {
                             Navigator.push(

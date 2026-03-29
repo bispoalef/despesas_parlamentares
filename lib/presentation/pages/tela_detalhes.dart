@@ -13,7 +13,6 @@ import '../blocs/despesas/despesas_state.dart';
 
 class TelaDetalhes extends StatefulWidget {
   final Deputado deputado;
-
   const TelaDetalhes({super.key, required this.deputado});
 
   @override
@@ -46,30 +45,23 @@ class _TelaDetalhesState extends State<TelaDetalhes> {
   }
 
   Widget _construirListaDespesas(List<Despesa> lista) {
-    final listaFiltrada = _tipoDespesaSelecionado == 'Todos'
-        ? lista
-        : lista.where((d) => d.tipoDespesa == _tipoDespesaSelecionado).toList();
-
-    if (listaFiltrada.isEmpty) {
+    if (lista.isEmpty) {
       return const Center(
-        child: Text(
-          'Nenhuma despesa para este filtro.',
-          style: TextStyle(color: Colors.grey),
-        ),
+        child: Text('Nenhuma despesa.', style: TextStyle(color: Colors.grey)),
       );
     }
 
     return ListView.builder(
       padding: const EdgeInsets.only(top: 8),
-      itemCount: listaFiltrada.length,
+      itemCount: lista.length,
       itemBuilder: (context, index) {
-        final despesa = listaFiltrada[index];
+        final despesa = lista[index];
         final temComprovante =
             despesa.urlDocumento != null && despesa.urlDocumento!.isNotEmpty;
 
         return ListTile(
           leading: CircleAvatar(
-            backgroundColor: AppTheme.corPrimaria.withValues(alpha: 0.1),
+            backgroundColor: AppTheme.corPrimaria.withOpacity(0.1),
             child: const Icon(Icons.receipt_long, color: AppTheme.corPrimaria),
           ),
           title: Text(
@@ -92,17 +84,9 @@ class _TelaDetalhesState extends State<TelaDetalhes> {
                       fontWeight: FontWeight.bold,
                       color: despesa.valorLiquido > 0
                           ? AppTheme.corSucesso
-                          : Colors.grey,
+                          : Colors.redAccent,
                     ),
                   ),
-                  if (despesa.valorLiquido > 0)
-                    const Text(
-                      'Reembolsado',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: AppTheme.corSucesso,
-                      ),
-                    ),
                 ],
               ),
               if (temComprovante) ...[
@@ -171,82 +155,127 @@ class _TelaDetalhesState extends State<TelaDetalhes> {
                         color: Colors.white,
                       ),
                     ),
-                    Text(
-                      '${widget.deputado.siglaPartido} - ${widget.deputado.siglaUf}',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        color: AppTheme.corSecundaria,
-                      ),
-                    ),
                   ],
                 ),
               ),
-
               Expanded(
                 child: BlocBuilder<DespesasCubit, DespesasState>(
                   builder: (context, state) {
                     if (state is DespesasLoading || state is DespesasInitial) {
-                      return const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            CircularProgressIndicator(),
-                            SizedBox(height: 16),
-                            Text(
-                              'Analisando notas fiscais...',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      );
+                      return const Center(child: CircularProgressIndicator());
                     } else if (state is DespesasSuccess) {
-                      final comReembolso = state.despesas
+                      final listaFiltrada = _tipoDespesaSelecionado == 'Todos'
+                          ? state.despesas
+                          : state.despesas
+                                .where(
+                                  (d) =>
+                                      d.tipoDespesa == _tipoDespesaSelecionado,
+                                )
+                                .toList();
+
+                      final comReembolso = listaFiltrada
                           .where((d) => d.valorLiquido > 0)
                           .toList();
-                      final semReembolso = state.despesas
+                      final semReembolso = listaFiltrada
                           .where((d) => d.valorLiquido <= 0)
                           .toList();
 
+                      final totalReembolsado = comReembolso.fold<double>(
+                        0,
+                        (sum, item) => sum + item.valorLiquido,
+                      );
+                      final totalSemReembolso = semReembolso.fold<double>(
+                        0,
+                        (sum, item) => sum + item.valorDocumento,
+                      );
+                      final totalGastoFiltro =
+                          totalReembolsado + totalSemReembolso;
+
+                      String periodo = 'Período não disponível';
+                      if (listaFiltrada.isNotEmpty) {
+                        String dataMaisAntiga = _formatarData(
+                          listaFiltrada.last.dataDocumento,
+                        );
+                        String dataMaisNova = _formatarData(
+                          listaFiltrada.first.dataDocumento,
+                        );
+                        periodo = '$dataMaisAntiga a $dataMaisNova';
+                      }
+
                       return Column(
                         children: [
-                          // Card do Total
                           Padding(
                             padding: const EdgeInsets.all(16.0),
                             child: Card(
-                              color: AppTheme.corSecundaria,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
+                              color: Colors.white,
+                              elevation: 3,
                               child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 20.0,
-                                  vertical: 16.0,
-                                ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
                                   children: [
-                                    const Text(
-                                      'Total Reembolsado:',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.date_range),
+                                        const SizedBox(width: 8),
+                                        Text('Período: $periodo'),
+                                      ],
                                     ),
-                                    Text(
-                                      _formatarMoeda(state.valorTotal),
-                                      style: const TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppTheme.corPrimaria,
-                                      ),
+                                    const Divider(height: 24),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text('Total Reembolsado:'),
+                                        Text(
+                                          _formatarMoeda(totalReembolsado),
+                                          style: const TextStyle(
+                                            color: AppTheme.corSucesso,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text('Sem Reembolso/Diretos:'),
+                                        Text(
+                                          _formatarMoeda(totalSemReembolso),
+                                          style: const TextStyle(
+                                            color: Colors.redAccent,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text(
+                                          'Gasto Total:',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        Text(
+                                          _formatarMoeda(totalGastoFiltro),
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: AppTheme.corPrimaria,
+                                            fontSize: 18,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
                               ),
                             ),
                           ),
-
                           Padding(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 16.0,
@@ -254,10 +283,9 @@ class _TelaDetalhesState extends State<TelaDetalhes> {
                             child: DropdownButtonFormField<String>(
                               decoration: const InputDecoration(
                                 labelText: 'Filtrar por tipo de gasto',
-                                prefixIcon: Icon(Icons.filter_list),
                               ),
                               isExpanded: true,
-                              initialValue: _tipoDespesaSelecionado,
+                              value: _tipoDespesaSelecionado,
                               items: [
                                 const DropdownMenuItem(
                                   value: 'Todos',
@@ -273,32 +301,18 @@ class _TelaDetalhesState extends State<TelaDetalhes> {
                                   ),
                                 ),
                               ],
-                              onChanged: (novoValor) {
-                                setState(() {
-                                  _tipoDespesaSelecionado = novoValor;
-                                });
-                              },
+                              onChanged: (novoValor) => setState(
+                                () => _tipoDespesaSelecionado = novoValor,
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 8),
-
                           const TabBar(
                             labelColor: AppTheme.corPrimaria,
-                            unselectedLabelColor: Colors.grey,
-                            indicatorColor: AppTheme.corPrimaria,
-                            indicatorWeight: 3,
                             tabs: [
-                              Tab(
-                                text: 'Com Reembolso',
-                                icon: Icon(Icons.attach_money),
-                              ),
-                              Tab(
-                                text: 'Sem Reembolso/Diretos',
-                                icon: Icon(Icons.money_off),
-                              ),
+                              Tab(text: 'Com Reembolso'),
+                              Tab(text: 'Sem Reembolso'),
                             ],
                           ),
-
                           Expanded(
                             child: TabBarView(
                               children: [

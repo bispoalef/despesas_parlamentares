@@ -29,9 +29,7 @@ class DespesasSuccess extends DespesasState {
 
 class DespesasError extends DespesasState {
   final String mensagem;
-
   const DespesasError(this.mensagem);
-
   @override
   List<Object?> get props => [mensagem];
 }

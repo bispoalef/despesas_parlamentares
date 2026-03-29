@@ -13,6 +13,7 @@ class DespesasCubit extends Cubit<DespesasState> {
     try {
       final despesas = await repository.getDespesasDeputado(idDeputado);
 
+      // Ordenação de data (Mais recente para a mais antiga)
       despesas.sort((a, b) {
         DateTime dataA =
             DateTime.tryParse(a.dataDocumento) ??
@@ -23,6 +24,7 @@ class DespesasCubit extends Cubit<DespesasState> {
         return dataB.compareTo(dataA);
       });
 
+      // Extrai os filtros únicos deste deputado
       final tiposUnicos = despesas.map((d) => d.tipoDespesa).toSet().toList();
       tiposUnicos.sort();
 
