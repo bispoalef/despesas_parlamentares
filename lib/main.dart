@@ -1,4 +1,3 @@
-import 'package:despesas_parlamentares/lib/presentation/pages/tela_detalhes.dart';
 import 'package:despesas_parlamentares/presentation/pages/tela_detalhes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';

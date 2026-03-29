@@ -11,10 +11,17 @@ import '../../domain/entities/despesa.dart';
 import '../blocs/despesas/despesas_cubit.dart';
 import '../blocs/despesas/despesas_state.dart';
 
-class TelaDetalhes extends StatelessWidget {
+class TelaDetalhes extends StatefulWidget {
   final Deputado deputado;
 
   const TelaDetalhes({super.key, required this.deputado});
+
+  @override
+  State<TelaDetalhes> createState() => _TelaDetalhesState();
+}
+
+class _TelaDetalhesState extends State<TelaDetalhes> {
+  String? _tipoDespesaSelecionado = 'Todos';
 
   String _formatarMoeda(double valor) {
     return NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$').format(valor);
@@ -34,15 +41,19 @@ class TelaDetalhes extends StatelessWidget {
     if (url == null || url.isEmpty) return;
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
     }
   }
 
   Widget _construirListaDespesas(List<Despesa> lista) {
-    if (lista.isEmpty) {
+    final listaFiltrada = _tipoDespesaSelecionado == 'Todos'
+        ? lista
+        : lista.where((d) => d.tipoDespesa == _tipoDespesaSelecionado).toList();
+
+    if (listaFiltrada.isEmpty) {
       return const Center(
         child: Text(
-          'Nenhuma despesa encontrada nesta categoria.',
+          'Nenhuma despesa para este filtro.',
           style: TextStyle(color: Colors.grey),
         ),
       );
@@ -50,9 +61,9 @@ class TelaDetalhes extends StatelessWidget {
 
     return ListView.builder(
       padding: const EdgeInsets.only(top: 8),
-      itemCount: lista.length,
+      itemCount: listaFiltrada.length,
       itemBuilder: (context, index) {
-        final despesa = lista[index];
+        final despesa = listaFiltrada[index];
         final temComprovante =
             despesa.urlDocumento != null && despesa.urlDocumento!.isNotEmpty;
 
@@ -65,6 +76,7 @@ class TelaDetalhes extends StatelessWidget {
             despesa.tipoDespesa,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 14),
           ),
           subtitle: Text('Data: ${_formatarData(despesa.dataDocumento)}'),
           trailing: Row(
@@ -84,7 +96,7 @@ class TelaDetalhes extends StatelessWidget {
                     ),
                   ),
                   if (despesa.valorLiquido > 0)
-                    Text(
+                    const Text(
                       'Reembolsado',
                       style: TextStyle(
                         fontSize: 10,
@@ -95,7 +107,11 @@ class TelaDetalhes extends StatelessWidget {
               ),
               if (temComprovante) ...[
                 const SizedBox(width: 8),
-                const Icon(Icons.picture_as_pdf, color: Colors.grey, size: 20),
+                const Icon(
+                  Icons.open_in_browser,
+                  color: AppTheme.corSecundaria,
+                  size: 24,
+                ),
               ],
             ],
           ),
@@ -111,7 +127,7 @@ class TelaDetalhes extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) =>
-          getIt<DespesasCubit>()..carregarDespesas(deputado.id),
+          getIt<DespesasCubit>()..carregarDespesas(widget.deputado.id),
       child: DefaultTabController(
         length: 2,
         child: Scaffold(
@@ -136,10 +152,10 @@ class TelaDetalhes extends StatelessWidget {
                 child: Column(
                   children: [
                     Hero(
-                      tag: 'foto_${deputado.id}',
+                      tag: 'foto_${widget.deputado.id}',
                       child: ClipOval(
                         child: CachedNetworkImage(
-                          imageUrl: deputado.urlFoto,
+                          imageUrl: widget.deputado.urlFoto,
                           width: 100,
                           height: 100,
                           fit: BoxFit.cover,
@@ -148,7 +164,7 @@ class TelaDetalhes extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      deputado.nome,
+                      widget.deputado.nome,
                       style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
@@ -156,7 +172,7 @@ class TelaDetalhes extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '${deputado.siglaPartido} - ${deputado.siglaUf}',
+                      '${widget.deputado.siglaPartido} - ${widget.deputado.siglaUf}',
                       style: const TextStyle(
                         fontSize: 16,
                         color: AppTheme.corSecundaria,
@@ -170,21 +186,19 @@ class TelaDetalhes extends StatelessWidget {
                 child: BlocBuilder<DespesasCubit, DespesasState>(
                   builder: (context, state) {
                     if (state is DespesasLoading || state is DespesasInitial) {
-                      return const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircularProgressIndicator(
-                            color: AppTheme.corPrimaria,
-                          ),
-                          SizedBox(height: 16),
-                          Text(
-                            'Analisando notas fiscais...',
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ],
+                      return const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(height: 16),
+                            Text(
+                              'Analisando notas fiscais...',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          ],
+                        ),
                       );
-                    } else if (state is DespesasError) {
-                      return Center(child: Text(state.mensagem));
                     } else if (state is DespesasSuccess) {
                       final comReembolso = state.despesas
                           .where((d) => d.valorLiquido > 0)
@@ -195,6 +209,7 @@ class TelaDetalhes extends StatelessWidget {
 
                       return Column(
                         children: [
+                          // Card do Total
                           Padding(
                             padding: const EdgeInsets.all(16.0),
                             child: Card(
@@ -232,6 +247,41 @@ class TelaDetalhes extends StatelessWidget {
                             ),
                           ),
 
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16.0,
+                            ),
+                            child: DropdownButtonFormField<String>(
+                              decoration: const InputDecoration(
+                                labelText: 'Filtrar por tipo de gasto',
+                                prefixIcon: Icon(Icons.filter_list),
+                              ),
+                              isExpanded: true,
+                              initialValue: _tipoDespesaSelecionado,
+                              items: [
+                                const DropdownMenuItem(
+                                  value: 'Todos',
+                                  child: Text('Todos os gastos'),
+                                ),
+                                ...state.tiposDisponiveis.map(
+                                  (tipo) => DropdownMenuItem(
+                                    value: tipo,
+                                    child: Text(
+                                      tipo,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              onChanged: (novoValor) {
+                                setState(() {
+                                  _tipoDespesaSelecionado = novoValor;
+                                });
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+
                           const TabBar(
                             labelColor: AppTheme.corPrimaria,
                             unselectedLabelColor: Colors.grey,
@@ -260,7 +310,6 @@ class TelaDetalhes extends StatelessWidget {
                         ],
                       );
                     }
-
                     return const SizedBox.shrink();
                   },
                 ),

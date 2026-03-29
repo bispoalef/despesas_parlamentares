@@ -15,11 +15,16 @@ class DespesasLoading extends DespesasState {}
 class DespesasSuccess extends DespesasState {
   final List<Despesa> despesas;
   final double valorTotal;
+  final List<String> tiposDisponiveis;
 
-  const DespesasSuccess({required this.despesas, required this.valorTotal});
+  const DespesasSuccess({
+    required this.despesas,
+    required this.valorTotal,
+    required this.tiposDisponiveis,
+  });
 
   @override
-  List<Object?> get props => [despesas, valorTotal];
+  List<Object?> get props => [despesas, valorTotal, tiposDisponiveis];
 }
 
 class DespesasError extends DespesasState {

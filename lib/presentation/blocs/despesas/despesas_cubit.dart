@@ -13,12 +13,31 @@ class DespesasCubit extends Cubit<DespesasState> {
     try {
       final despesas = await repository.getDespesasDeputado(idDeputado);
 
+      despesas.sort((a, b) {
+        DateTime dataA =
+            DateTime.tryParse(a.dataDocumento) ??
+            DateTime.fromMillisecondsSinceEpoch(0);
+        DateTime dataB =
+            DateTime.tryParse(b.dataDocumento) ??
+            DateTime.fromMillisecondsSinceEpoch(0);
+        return dataB.compareTo(dataA);
+      });
+
+      final tiposUnicos = despesas.map((d) => d.tipoDespesa).toSet().toList();
+      tiposUnicos.sort();
+
       double somaTotal = 0;
       for (var despesa in despesas) {
         somaTotal += despesa.valorLiquido;
       }
 
-      emit(DespesasSuccess(despesas: despesas, valorTotal: somaTotal));
+      emit(
+        DespesasSuccess(
+          despesas: despesas,
+          valorTotal: somaTotal,
+          tiposDisponiveis: tiposUnicos,
+        ),
+      );
     } catch (e) {
       emit(const DespesasError('Não foi possível carregar as despesas.'));
     }
