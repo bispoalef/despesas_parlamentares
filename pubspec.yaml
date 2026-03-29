@@ -50,6 +50,9 @@ dependencies:
   # Para abrir os PDFs/Imagens
   url_launcher: ^6.2.4
 
+  # Pacote para formatar dinheiro (R$) e datas
+  intl: ^0.19.0
+
 # Carregar imagens de forma rápida e com cache
   cached_network_image: ^3.3.1
 
